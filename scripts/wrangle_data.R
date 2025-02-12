@@ -61,30 +61,39 @@ read_data <- function(.file, .type){
     
   } else if (.type == "pr"){
     
-    data <- suppressMessages(read_excel(filename, sheet = districts[1]))
-    ncols <- ncol(data)
-    names(data) <- c("municipality", 1:(ncols - 1))
+    districts <- purrr::discard(
+      .x = districts,
+      .p = ~ grepl("リスト", .x)  # Remove sheets with "リスト" in the name
+    )
     
-    location <- which(data$municipality == "市区町村名＼政党名")
+    out <- NULL
     
-    parties    <- data[location, 2:ncols]
-    
-    information <- data.frame(
-      parties   = data[location, 2:ncols] %>% t()
-    ) %>% 
-      mutate(id = row_number())
-    
-    out <- data %>% 
-      filter(row_number() > location) %>% 
-      mutate(across(.cols = everything(), .fns = as.character)) %>% 
-      pivot_longer(cols = all_of(2:ncols), names_to = "id", values_to = "votes") %>% 
-      mutate(id = as.numeric(id)) %>% 
-      left_join(information, by = "id") %>% 
-      select(-id) %>% 
-      filter(!is.na(votes) & !is.na(parties)) %>% 
-      mutate(votes = as.numeric(votes),
-             file = .file, 
-             district = districts[1])
+    for (i in seq_along(districts)) {
+      data.district <- suppressMessages(read_excel(filename, sheet = districts[i]))
+      ncols <- ncol(data.district)
+      names(data.district) <- c("municipality", 1:(ncols - 1))
+      
+      location <- which(data.district$municipality == "市区町村名＼政党名")
+      parties    <- data.district[location, 2:ncols]
+      
+      information <- data.frame(
+        parties   = data.district[location, 2:ncols] %>% t()
+      ) %>% 
+        mutate(id = row_number())
+      
+      out.district <- data.district %>% 
+        filter(row_number() > location) %>% 
+        mutate(across(.cols = everything(), .fns = as.character)) %>% 
+        pivot_longer(cols = all_of(2:ncols), names_to = "id", values_to = "votes") %>% 
+        mutate(id = as.numeric(id)) %>% 
+        left_join(information, by = "id") %>% 
+        select(-id) %>% 
+        filter(!is.na(votes) & !is.na(parties)) %>% 
+        mutate(votes = as.numeric(votes),
+               file = .file, 
+               district = districts[i])
+      out <- bind_rows(out, out.district)
+    }
     
     return(out)
     
