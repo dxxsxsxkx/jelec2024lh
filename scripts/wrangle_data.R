@@ -47,7 +47,10 @@ read_data <- function(.file, .type){
         mutate(id = as.numeric(id)) %>% 
         left_join(information, by = "id") %>% 
         select(-id) %>% 
-        filter(!is.na(votes) & !is.na(parties)) %>% 
+        filter(
+          !is.na(votes) #& 
+          #!is.na(parties)
+        ) %>% 
         mutate(votes = as.numeric(votes),
                file = .file, 
                district = districts[i])
